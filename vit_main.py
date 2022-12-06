@@ -269,10 +269,10 @@ def evaluate(model, dset_loader, criterion):
             else:
                 input, lengths, labels = data
                 boundaries = None
-            logits = model(
-                input.unsqueeze(1).cuda(), lengths=lengths, boundaries=boundaries
-            )
-            # logits = model(input.cuda())
+            # logits = model(
+            #     input.unsqueeze(1).cuda(), lengths=lengths, boundaries=boundaries
+            # )
+            logits = model(input.cuda())
             _, preds = torch.max(F.softmax(logits, dim=1).data, dim=1)
             running_corrects += preds.eq(labels.cuda().view_as(preds)).sum().item()
 
@@ -319,10 +319,10 @@ def train(model, dset_loader, criterion, epoch, optimizer, logger):
 
         optimizer.zero_grad()
 
-        logits = model(
-            input.unsqueeze(1).cuda(), lengths=lengths, boundaries=boundaries
-        )
-        # logits = model(input.cuda())
+        # logits = model(
+        #     input.unsqueeze(1).cuda(), lengths=lengths, boundaries=boundaries
+        # )
+        logits = model(input.cuda())
 
         loss_func = mixup_criterion(labels_a, labels_b, lam)
         loss = loss_func(criterion, logits)
@@ -407,31 +407,34 @@ def get_model_from_json():
 
 
 def get_video_transformer():
-    from video_transformers.modeling import (
-        TimeDistributed,
-        VideoModel,
-    )
     from video_transformers.backbones.timm import TimmBackbone
     from video_transformers.heads import LinearHead
+    from video_transformers.modeling import TimeDistributed, VideoModel
     from video_transformers.necks import GRUNeck
 
     unfrozen_stages = 0  # Freeze whole network
     # unfrozen_stages = -1 # To train whole network
     hidden_size = 128
-    model_name = "mobilevitv2_100"
+    # model_name = "mobilevitv2_100"
+    model_name = "resnet18"
 
-    backbone = TimeDistributed(
-        TimmBackbone(model_name, pretrained=True, num_unfrozen_stages=unfrozen_stages)
-    )
-    neck = GRUNeck(
-        num_features=backbone.num_features,
-        hidden_size=hidden_size,
-        num_layers=2,
-        return_last=True,
-    )
-    head = LinearHead(hidden_size=neck.hidden_size, num_classes=args.num_classes)
+    # backbone = TimeDistributed(
+    #     TimmBackbone(model_name, pretrained=True, num_unfrozen_stages=unfrozen_stages)
+    # )
+    # neck = GRUNeck(
+    #     num_features=backbone.num_features,
+    #     hidden_size=hidden_size,
+    #     num_layers=2,
+    #     return_last=True,
+    # )
+    # head = LinearHead(hidden_size=neck.hidden_size, num_classes=args.num_classes)
 
-    return VideoModel(backbone, head, neck).cuda()
+    # return VideoModel(backbone, head, neck).cuda()
+
+    # backbone = TimmBackbone(model_name, pretrained=True, num_unfrozen_stages=-1)
+    backbone = TimmBackbone(model_name, pretrained=False, num_unfrozen_stages=-1)
+    head = LinearHead(hidden_size=backbone.num_features, num_classes=args.num_classes)
+    return VideoModel(backbone, head).cuda()
 
 
 def main():
@@ -442,13 +445,14 @@ def main():
     logger = get_logger(args, save_path)
     ckpt_saver = CheckpointSaver(save_path)
 
-    # -- get model
-    model = get_model_from_json()
-    # -- get dataset iterators
-    dset_loaders = get_data_loaders(args)
+    # # -- get model
+    # model = get_model_from_json()
+    # # -- get dataset iterators
+    # dset_loaders = get_data_loaders(args)
 
-    # model = get_video_transformer()
+    model = get_video_transformer()
     # dset_loaders = get_data_loaders(args, model.backbone.mean, model.backbone.std)
+    dset_loaders = get_data_loaders(args)
     # -- get loss function
     criterion = nn.CrossEntropyLoss()
     # -- get optimizer

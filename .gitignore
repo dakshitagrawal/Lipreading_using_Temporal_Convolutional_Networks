@@ -7,4 +7,9 @@ __pycache__/
 *.tar
 *.pth
 datasets/outputs
+datasets/
+landmarks/
+models/
+raw_data/
 .DS_Store
+train_logs/
